@@ -1,0 +1,27 @@
+<idea-plugin>
+    <id>org.example.package-monitor</id>
+    <name>Package Monitor</name>
+    <vendor email="support@salilvnair.com" url="https://www.salilvnair.com">salilvnair</vendor>
+
+    <description><![CDATA[
+    Package Monitor can watch desired npm package dependency and then check those are latest ones or not.
+    ]]></description>
+
+    <!-- please see https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html
+         on how to target different products -->
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Add your extensions here -->
+    </extensions>
+
+    <actions>
+        <!-- Add your actions here -->
+        <action id="com.salilvnair.packagemonitor.PackageMonitorAction"
+                class="com.salilvnair.packagemonitor.PackageMonitorAction" text="Package Monitor"
+                description="Package monitor" icon="/icon/packageJson.png">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl WINDOWS"/>
+        </action>
+    </actions>
+</idea-plugin>
