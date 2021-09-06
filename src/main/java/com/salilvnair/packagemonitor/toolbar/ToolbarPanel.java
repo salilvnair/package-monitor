@@ -52,12 +52,7 @@ public class ToolbarPanel extends JToolBar implements SwingComponent, ActionList
             showAllButton.setIcon(IconUtils.createIcon("/icon/view_all_dark.png"));
             showDiffOnlyButton.setIcon(IconUtils.createIcon("/icon/diff_only_dark.png"));
         }
-
-
-
-        showAllButton.setVisible(false);
         showAllButton.setEnabled(false);
-        showDiffOnlyButton.setVisible(false);
     }
 
     @Override

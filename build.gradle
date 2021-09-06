@@ -3,8 +3,8 @@ plugins {
     id 'java'
 }
 
-group 'org.example'
-version '1.0-SNAPSHOT'
+group 'com.salilvnair'
+version '1.0.0'
 
 repositories {
     mavenCentral()
@@ -21,8 +21,8 @@ intellij {
 }
 patchPluginXml {
     changeNotes = """
-      Add change notes here.<br>
-      <em>most HTML tags may be used</em>"""
+      version: 1.0.0.<br>
+      <em>Base version</em>"""
 }
 test {
     useJUnitPlatform()

@@ -4,6 +4,7 @@ import com.intellij.execution.ExecutionException;
 import com.intellij.execution.configurations.GeneralCommandLine;
 import com.intellij.execution.process.ScriptRunnerUtil;
 import com.intellij.openapi.project.Project;
+import com.intellij.ui.JBColor;
 import com.intellij.util.ui.UIUtil;
 import com.salilvnair.packagemonitor.event.MainFrameActionPanelEvent;
 import com.salilvnair.packagemonitor.event.TableSelectionEvent;
@@ -36,9 +37,9 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
     private MainFrameActionPanel mainFrameActionPanel;
     private ToolbarPanel toolbarPanel;
     private Map<String, PackageInfo> packageNamePackageInfoMap;
-    private Project project;
+    private final Project project;
     private JDialog loading;
-    private PackageInfoConfiguration packageInfoConfiguration;
+    private final PackageInfoConfiguration packageInfoConfiguration;
     JMenuItem exitItem;
     JMenuItem settingsItem;
     private SwingWorker<PackageInfo, String> compareNpmWorker;
@@ -70,6 +71,7 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
     public void initComponents() {
         setJMenuBar(initMenuBar());
         toolbarPanel = new ToolbarPanel();
+        toolbarPanel.setVisible(false);
         tablePanel = new TablePanel(getRootPane());
         List<PackageInfo> data = new ArrayList<>();
         tablePanel.setData(data);
@@ -80,6 +82,9 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
         waitLabel.setFont(new Font("JetBrains Mono", Font.PLAIN, 16));
         p1.add(waitLabel, BorderLayout.CENTER);
         p1.setSize(300,300);
+        if(!UIUtil.isUnderDarcula()) {
+            loading.setBackground(JBColor.WHITE);
+        }
         loading.setUndecorated(true);
         loading.getContentPane().add(p1);
         loading.pack();
@@ -118,7 +123,7 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
 
         exitItem.addActionListener( actionEvent -> {
             int action = JOptionPane.showConfirmDialog(PackageMonitorMainFrame.this
-                    , "Do you want to exit?", "Confirm Exit", JOptionPane.OK_CANCEL_OPTION );
+                    , "Do you want to exit?", "Confirm Exit", JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE );
             if(action == JOptionPane.OK_OPTION) {
                 WindowListener[] windowListeners = getWindowListeners();
                 windowListeners[0].windowClosing(new WindowEvent(PackageMonitorMainFrame.this, 0));
@@ -175,12 +180,14 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
             protected void done() {
                 System.out.println("All Packages has been updated");
                 loading.dispose();
+                JOptionPane.showMessageDialog(PackageMonitorMainFrame.this, "Package(s) updated successfully!", "Updated Successfully", JOptionPane.INFORMATION_MESSAGE);
             }
 
             @Override
             protected void process(List<String> packageNames) {
                 boolean shouldContinue = !isCancelled();
                 if(shouldContinue) {
+                    JOptionPane.showMessageDialog(PackageMonitorMainFrame.this, "Updated package:" + packageNames.get(0), "Updated Successfully", JOptionPane.INFORMATION_MESSAGE);
                     System.out.println("Updated package:" + packageNames.get(0));
                 }
             }
@@ -195,7 +202,7 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
                     }
                     for(PackageInfo packageInfo : updatePackageInfos) {
                         List<String> cmds = new ArrayList<>();
-                        cmds.add("npm.cmd");
+                        cmds.add(IntelliJNpmUtils.npm());
                         GeneralCommandLine generalCommandLine = new GeneralCommandLine(cmds);
                         generalCommandLine.setCharset(StandardCharsets.UTF_8);
                         generalCommandLine.setWorkDirectory(project.getBasePath());
@@ -235,7 +242,7 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
         Map<String, String> finalPackageNameVersionMap = packageNameVersionMap;
         PackageMonitorMainFrame self = this;
         if (compareNpmWorker == null || compareNpmWorker.isDone() || compareNpmWorker.isCancelled()) {
-            compareNpmVersionsSwingWorker(finalPackageNameVersionMap, self);
+            compareNpmVersionsSwingWorker(finalPackageNameVersionMap);
         }
         if(!packageInfoConfiguration.isConfiguredPackagesInSync()){
             compareNpmWorker.execute();
@@ -245,7 +252,7 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
         }
     }
 
-    private void compareNpmVersionsSwingWorker(Map<String, String> finalPackageNameVersionMap, PackageMonitorMainFrame self) {
+    private void compareNpmVersionsSwingWorker(Map<String, String> finalPackageNameVersionMap) {
         compareNpmWorker = new SwingWorker<>() {
             @Override
             protected void done() {
@@ -254,15 +261,14 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
                 if(allPackagesInSync) {
                     tablePanel.disableRowSelection();
                     mainFrameActionPanel.hideUpdateButton();
-                    toolbarPanel.hideFilterButtons();
+                    toolbarPanel.setVisible(false);
                     packageInfoConfiguration.setConfiguredPackagesInSync(true);
                     PackageMonitorConfigFrame.saveConfigurationToUserHome(packageInfoConfiguration);
-                    self.dispose();
                 }
                 else {
                     tablePanel.enableRowSelection();
                     mainFrameActionPanel.showUpdateButton();
-                    toolbarPanel.showFilterButtons();
+                    toolbarPanel.setVisible(true);
                 }
             }
 
@@ -287,7 +293,7 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
                     }
                     for(String name : finalPackageNameVersionMap.keySet()) {
                         List<String> cmds = new ArrayList<>();
-                        cmds.add("npm.cmd");
+                        cmds.add(IntelliJNpmUtils.npm());
                         GeneralCommandLine generalCommandLine = new GeneralCommandLine(cmds);
                         generalCommandLine.setCharset(StandardCharsets.UTF_8);
                         generalCommandLine.setWorkDirectory(project.getBasePath());

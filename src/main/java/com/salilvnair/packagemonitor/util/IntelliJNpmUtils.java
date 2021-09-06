@@ -8,6 +8,7 @@ import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
@@ -48,5 +49,12 @@ public class IntelliJNpmUtils {
             }
         }
         return packageNameVersionMap;
+    }
+
+    public static String npm() {
+        if(SystemInfo.isWindows) {
+            return "npm.cmd";
+        }
+        return "npm";
     }
 }

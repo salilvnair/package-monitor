@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>org.example.package-monitor</id>
+    <id>com.salilvnair.package-monitor</id>
     <name>Package Monitor</name>
     <vendor email="support@salilvnair.com" url="https://www.salilvnair.com">salilvnair</vendor>
 
@@ -21,7 +21,7 @@
                 class="com.salilvnair.packagemonitor.PackageMonitorAction" text="Package Monitor"
                 description="Package monitor" icon="/icon/packageJson.png">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl WINDOWS"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift p"/>
         </action>
     </actions>
 </idea-plugin>
