@@ -1,12 +1,10 @@
 package com.salilvnair.packagemonitor.toolbar;
 
 
-
-import com.intellij.util.ui.UIUtil;
+import com.intellij.icons.AllIcons;
 import com.salilvnair.packagemonitor.listener.ToolbarListener;
 import com.salilvnair.packagemonitor.type.ToolbarEvent;
 import com.salilvnair.packagemonitor.ui.SwingComponent;
-import com.salilvnair.packagemonitor.util.IconUtils;
 
 import javax.swing.*;
 import java.awt.*;
@@ -20,7 +18,10 @@ public class ToolbarPanel extends JToolBar implements SwingComponent, ActionList
 
     private JButton showAllButton;
     private JButton showDiffOnlyButton;
+    private JButton forceRefresh;
     private ToolbarListener toolbarListener;
+    private JPanel diffPanel;
+    private JPanel refreshPanel;
 
     public ToolbarPanel() {
         init();
@@ -34,24 +35,22 @@ public class ToolbarPanel extends JToolBar implements SwingComponent, ActionList
 
     @Override
     public void initLayout() {
-        setLayout(new FlowLayout(FlowLayout.LEFT));
+        setLayout(new BorderLayout());
     }
 
     @Override
     public void initComponents() {
+        diffPanel = new JPanel();
+        refreshPanel = new JPanel();
         showAllButton = new JButton();
         showDiffOnlyButton = new JButton();
+        forceRefresh = new JButton();
         showAllButton.setToolTipText("Show All");
-        showDiffOnlyButton.setToolTipText("Show Diff Only");
-
-        if(UIUtil.isUnderDarcula()) {
-            showAllButton.setIcon(IconUtils.createIcon("/icon/view_all_white.png"));
-            showDiffOnlyButton.setIcon(IconUtils.createIcon("/icon/diff_only_white.png"));
-        }
-        else {
-            showAllButton.setIcon(IconUtils.createIcon("/icon/view_all_dark.png"));
-            showDiffOnlyButton.setIcon(IconUtils.createIcon("/icon/diff_only_dark.png"));
-        }
+        showDiffOnlyButton.setToolTipText("Show Diff");
+        forceRefresh.setToolTipText("Force Refresh");
+        showAllButton.setIcon(AllIcons.Actions.RegexSelected);
+        showDiffOnlyButton.setIcon(AllIcons.Actions.Diff);
+        forceRefresh.setIcon(AllIcons.Actions.ForceRefresh);
         showAllButton.setEnabled(false);
     }
 
@@ -59,16 +58,25 @@ public class ToolbarPanel extends JToolBar implements SwingComponent, ActionList
     public void initListeners() {
         showAllButton.addActionListener(this);
         showDiffOnlyButton.addActionListener(this);
+        forceRefresh.addActionListener(this);
     }
 
     @Override
     public void initChildrenLayout() {
-        add(showAllButton);
-        //addSeparator();
-        add(showDiffOnlyButton);
+        diffPanel.setLayout(new FlowLayout());
+        refreshPanel.setLayout(new FlowLayout());
+        refreshPanel.add(forceRefresh);
+        diffPanel.add(showAllButton);
+        diffPanel.add(showDiffOnlyButton);
+        add(diffPanel, BorderLayout.WEST);
+        add(refreshPanel, BorderLayout.EAST);
     }
 
 
+    @Override
+    public void initStyle() {
+        this.diffPanel.setVisible(false);
+    }
 
     @Override
     public void actionPerformed(ActionEvent actionEvent) {
@@ -79,6 +87,9 @@ public class ToolbarPanel extends JToolBar implements SwingComponent, ActionList
                 showAllButton.setEnabled(false);
                 showDiffOnlyButton.setEnabled(true);
                 toolbarListener.emit(ToolbarEvent.SHOW_ALL);
+            }
+            else if(clicked == forceRefresh) {
+                toolbarListener.emit(ToolbarEvent.FORCE_REFRESH);
             }
             else {
                 //textPanel.appendText("Bye!!\n");
@@ -97,6 +108,30 @@ public class ToolbarPanel extends JToolBar implements SwingComponent, ActionList
     public void hideFilterButtons() {
         this.showDiffOnlyButton.setVisible(false);
         this.showAllButton.setVisible(false);
+    }
+
+    public boolean showDiffEnabled() {
+        return this.showDiffOnlyButton.isEnabled();
+    }
+
+    public boolean showAllEnabled() {
+        return this.showAllButton.isEnabled();
+    }
+
+    public void showDiffPanel() {
+        this.diffPanel.setVisible(true);
+    }
+
+    public void hideDiffPanel() {
+        this.diffPanel.setVisible(false);
+    }
+
+    public void enableForceRefresh() {
+        this.forceRefresh.setEnabled(true);
+    }
+
+    public void disableForceRefresh() {
+        this.forceRefresh.setEnabled(false);
     }
 
     public void addToolbarListener(ToolbarListener toolbarListener) {

@@ -1,9 +1,8 @@
 package com.salilvnair.packagemonitor.panel;
 
 import com.intellij.ui.components.JBPanel;
-import com.salilvnair.packagemonitor.emitter.EventEmitter;
-import com.salilvnair.packagemonitor.event.ConfigFrameActionPanelEvent;
-import com.salilvnair.packagemonitor.event.MainFrameActionPanelEvent;
+import com.salilvnair.packagemonitor.event.core.EventEmitter;
+import com.salilvnair.packagemonitor.event.type.ConfigFrameActionPanelEvent;
 import com.salilvnair.packagemonitor.ui.SwingComponent;
 
 import javax.swing.*;

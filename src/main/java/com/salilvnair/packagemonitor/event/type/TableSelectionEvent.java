@@ -1,4 +1,4 @@
-package com.salilvnair.packagemonitor.event;
+package com.salilvnair.packagemonitor.event.type;
 
 import java.util.EventObject;
 

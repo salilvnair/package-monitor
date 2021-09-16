@@ -2,8 +2,8 @@ package com.salilvnair.packagemonitor.panel;
 
 import com.intellij.ui.components.JBPanel;
 import com.intellij.ui.table.JBTable;
-import com.salilvnair.packagemonitor.emitter.EventEmitter;
-import com.salilvnair.packagemonitor.event.TableSelectionEvent;
+import com.salilvnair.packagemonitor.event.core.EventEmitter;
+import com.salilvnair.packagemonitor.event.type.TableSelectionEvent;
 import com.salilvnair.packagemonitor.model.PackageInfo;
 import com.salilvnair.packagemonitor.model.PackageInfoTableModel;
 import com.salilvnair.packagemonitor.renderer.LatestVersionCellRenderer;

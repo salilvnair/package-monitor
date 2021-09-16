@@ -10,10 +10,12 @@ import java.util.List;
 public class PackageInfoConfiguration implements Serializable {
     List<PackageInfo> configuredPackageInfos;
     private boolean configuredPackagesInSync;
+    private int selectedMonitorType;
 
-    public PackageInfoConfiguration(List<PackageInfo> configuredPackageInfos, boolean configuredPackagesInSync) {
+    public PackageInfoConfiguration(List<PackageInfo> configuredPackageInfos, boolean configuredPackagesInSync, int selectedMonitorType) {
         this.configuredPackageInfos = configuredPackageInfos;
         this.configuredPackagesInSync = configuredPackagesInSync;
+        this.selectedMonitorType = selectedMonitorType;
     }
 
     public List<PackageInfo> getConfiguredPackageInfos() {
@@ -33,5 +35,13 @@ public class PackageInfoConfiguration implements Serializable {
 
     public void setConfiguredPackagesInSync(boolean configuredPackagesInSync) {
         this.configuredPackagesInSync = configuredPackagesInSync;
+    }
+
+    public int getSelectedMonitorType() {
+        return selectedMonitorType;
+    }
+
+    public void setSelectedMonitorType(int selectedMonitorType) {
+        this.selectedMonitorType = selectedMonitorType;
     }
 }

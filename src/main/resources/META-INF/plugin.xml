@@ -19,7 +19,7 @@
         <!-- Add your actions here -->
         <action id="com.salilvnair.packagemonitor.PackageMonitorAction"
                 class="com.salilvnair.packagemonitor.PackageMonitorAction" text="Package Monitor"
-                description="Package monitor" icon="/icon/packageJson.png">
+                description="Package monitor" icon="AllIcons.Debugger.Watch">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift p"/>
         </action>

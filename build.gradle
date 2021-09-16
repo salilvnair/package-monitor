@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'com.salilvnair'
-version '1.0.0'
+version '1.0.2'
 
 repositories {
     mavenCentral()
@@ -13,6 +13,7 @@ repositories {
 dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+    implementation 'com.apple:AppleJavaExtensions:1.4'
 }
 
 // See https://github.com/JetBrains/gradle-intellij-plugin/
@@ -22,7 +23,17 @@ intellij {
 patchPluginXml {
     changeNotes = """
       version: 1.0.0.<br>
-      <em>Base version</em>"""
+      <em>Base version</em>
+      <br><br>
+      version: 1.0.1<br>
+      <em>Added Angular library package monitor feature</em>
+      <em>Added force refresh button</em>
+      <br><br>
+      version: 1.0.2<br>
+      <em>Bug Fix #1 On click of other files after angular.json update wasn't working.</em>
+      <em>Bug Fix #2 Refresh button to be disabled for empty table data</em>
+      <em>Bug Fix #3 Auto diff filter if diff filter is selected.</em>
+      """
 }
 test {
     useJUnitPlatform()

@@ -1,57 +1,64 @@
 package com.salilvnair.packagemonitor.frame;
 
-import com.intellij.execution.ExecutionException;
-import com.intellij.execution.configurations.GeneralCommandLine;
-import com.intellij.execution.process.ScriptRunnerUtil;
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.SystemInfo;
+import com.intellij.ui.AnimatedIcon;
 import com.intellij.ui.JBColor;
 import com.intellij.util.ui.UIUtil;
-import com.salilvnair.packagemonitor.event.MainFrameActionPanelEvent;
-import com.salilvnair.packagemonitor.event.TableSelectionEvent;
+import com.salilvnair.packagemonitor.event.core.EventEmitter;
+import com.salilvnair.packagemonitor.event.core.EventPublisher;
+import com.salilvnair.packagemonitor.event.type.MainFrameActionPanelEvent;
+import com.salilvnair.packagemonitor.event.type.MainFrameEvent;
+import com.salilvnair.packagemonitor.event.type.PackageMonitorEvent;
+import com.salilvnair.packagemonitor.event.type.TableSelectionEvent;
+import com.salilvnair.packagemonitor.icon.PackageMonitorIcon;
 import com.salilvnair.packagemonitor.model.PackageInfo;
 import com.salilvnair.packagemonitor.model.PackageInfoConfiguration;
 import com.salilvnair.packagemonitor.panel.MainFrameActionPanel;
 import com.salilvnair.packagemonitor.panel.TablePanel;
+import com.salilvnair.packagemonitor.service.context.DataContext;
+import com.salilvnair.packagemonitor.service.core.PackageMonitorService;
+import com.salilvnair.packagemonitor.service.factory.PackageMonitorFactory;
+import com.salilvnair.packagemonitor.service.type.PackageMonitorType;
 import com.salilvnair.packagemonitor.toolbar.ToolbarPanel;
 import com.salilvnair.packagemonitor.type.ToolbarEvent;
 import com.salilvnair.packagemonitor.ui.SwingComponent;
 import com.salilvnair.packagemonitor.util.IconUtils;
-import com.salilvnair.packagemonitor.util.IntelliJNpmUtils;
+import com.salilvnair.packagemonitor.util.MacOsUtil;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * @author Salil V Nair
  */
-public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
-
+public class PackageMonitorMainFrame extends JFrame implements SwingComponent, EventPublisher {
     private TablePanel tablePanel;
     private MainFrameActionPanel mainFrameActionPanel;
     private ToolbarPanel toolbarPanel;
-    private Map<String, PackageInfo> packageNamePackageInfoMap;
     private final Project project;
     private JDialog loading;
-    private final PackageInfoConfiguration packageInfoConfiguration;
     JMenuItem exitItem;
     JMenuItem settingsItem;
-    private SwingWorker<PackageInfo, String> compareNpmWorker;
-    SwingWorker<PackageInfo, String> updateNpmWorker;
+    private final PackageMonitorService monitorService;
+    private final DataContext dataContext;
+    private EventEmitter emitter;
+    private final PackageMonitorType packageMonitorType;
 
-    public PackageMonitorMainFrame(Project project, PackageInfoConfiguration packageInfoConfiguration) {
+    public PackageMonitorMainFrame(Project project, PackageInfoConfiguration packageInfoConfiguration, PackageMonitorType packageMonitorType) {
         super("Package Monitor");
         this.project = project;
-        this.packageInfoConfiguration = packageInfoConfiguration;
+        this.packageMonitorType = packageMonitorType;
+        monitorService = PackageMonitorFactory.generate(packageMonitorType.factory());
         init();
         setVisible(true);
-        compareNpmVersionsSwingWorker();
+        dataContext = new DataContext(project, this, packageInfoConfiguration);
+        dataContext.setPackageMonitorType(packageMonitorType);
+        monitorService.monitor(packageMonitorType.compareVersionCommand(), dataContext);
     }
 
     @Override
@@ -61,36 +68,21 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
 
     @Override
     public void initStyle() {
-        setSize(600,500);
+        setSize(750,550);
         Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
         this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize().height/2);
-        setIconImage(IconUtils.createIcon("/icon/package-json-blue.png").getImage());
+        setIconImage(IconUtils.createIcon(AllIcons.Debugger.Watch).getImage());
     }
 
     @Override
     public void initComponents() {
         setJMenuBar(initMenuBar());
         toolbarPanel = new ToolbarPanel();
-        toolbarPanel.setVisible(false);
         tablePanel = new TablePanel(getRootPane());
         List<PackageInfo> data = new ArrayList<>();
         tablePanel.setData(data);
         mainFrameActionPanel = new MainFrameActionPanel(getRootPane());
-        loading = new JDialog(this);
-        JPanel p1 = new JPanel(new BorderLayout());
-        JLabel waitLabel = new JLabel("Please wait...");
-        waitLabel.setFont(new Font("JetBrains Mono", Font.PLAIN, 16));
-        p1.add(waitLabel, BorderLayout.CENTER);
-        p1.setSize(300,300);
-        if(!UIUtil.isUnderDarcula()) {
-            loading.setBackground(JBColor.WHITE);
-        }
-        loading.setUndecorated(true);
-        loading.getContentPane().add(p1);
-        loading.pack();
-        loading.setLocationRelativeTo(this);
-        loading.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        loading.setModal(true);
+        initLoadingPanel();
     }
 
     @Override
@@ -107,6 +99,13 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
             if(ToolbarEvent.SHOW_ALL.equals(toolbarEvent)) {
                 tablePanel.showAll();
             }
+            else if(ToolbarEvent.FORCE_REFRESH.equals(toolbarEvent)) {
+                tablePanel.clear();
+                PackageInfoConfiguration packageInfoConfiguration = dataContext.packageInfoConfiguration();
+                if(packageInfoConfiguration != null && !packageInfoConfiguration.getConfiguredPackageInfos().isEmpty()) {
+                    monitorService.monitor(packageMonitorType.compareVersionCommand(), dataContext);
+                }
+            }
             else {
                 tablePanel.showOnlyDiff();
             }
@@ -117,7 +116,9 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
         mainFrameActionPanel.actionPerformed(event -> {
             MainFrameActionPanelEvent mainFrameActionPanelEvent = (MainFrameActionPanelEvent) event;
             if(mainFrameActionPanelEvent.updateClicked()) {
-                updateNpmVersions();
+                dataContext.setPackageInfos(tablePanel.data());
+                dataContext.setSelectedRows(tablePanel.selectedRows());
+                monitorService.monitor(packageMonitorType.updateVersionCommand(), dataContext);
             }
         });
 
@@ -131,17 +132,94 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
         });
         PackageMonitorMainFrame mainFrame = this;
         settingsItem.addActionListener(actionEvent -> {
-            new PackageMonitorConfigFrame(project, false, true, mainFrame);
+            new PackageMonitorConfigFrame(project, false, true, mainFrame, packageMonitorType);
             mainFrame.setVisible(false);
         });
 
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                cleanUpWorkers(compareNpmWorker);
-                cleanUpWorkers(updateNpmWorker);
+                MainFrameEvent event = new MainFrameEvent(this, true);
+                emitter.emit(event);
                 dispose();
                 System.gc();
+            }
+        });
+
+        if(SystemInfo.isMac) {
+            MacOsUtil.closeOnQuit();
+        }
+
+        monitorService.subscribe(event -> {
+            if( event instanceof PackageMonitorEvent) {
+                PackageMonitorEvent packageMonitorEvent = (PackageMonitorEvent) event;
+                switch (packageMonitorEvent.eventType()) {
+                    case TABLE_PANEL_DATA:
+                        tablePanel.addData(packageMonitorEvent.tablePanelData());
+                        break;
+
+                    case REPLACE_TABLE_DATA:
+                        tablePanel.replace(packageMonitorEvent.replacedTableData());
+                        break;
+
+                    case ENABLE_TABLE_ROW_SELECTION:
+                        tablePanel.enableRowSelection();
+                        break;
+
+                    case DISABLE_TABLE_ROW_SELECTION:
+                        tablePanel.disableRowSelection();
+                        break;
+
+                    case HIDE_LOADING:
+                        loading.setVisible(false);
+                        break;
+
+                    case SHOW_LOADING:
+                        loading.setVisible(true);
+                        break;
+
+                    case DISPOSE_LOADING:
+                        loading.dispose();
+                        break;
+
+                    case HIDE_UPDATE_BTN:
+                        mainFrameActionPanel.hideUpdateButton();
+                        break;
+
+                    case SHOW_UPDATE_BTN:
+                        mainFrameActionPanel.showUpdateButton();
+                        break;
+
+                    case HIDE_TOOLBAR_PANEL:
+                        toolbarPanel.setVisible(false);
+                        break;
+
+                    case SHOW_TOOLBAR_PANEL:
+                        toolbarPanel.setVisible(true);
+                        break;
+
+                    case SHOW_TOOLBAR_DIFF_PANEL:
+                        toolbarPanel.showDiffPanel();
+                        break;
+
+                    case HIDE_TOOLBAR_DIFF_PANEL:
+                        toolbarPanel.hideDiffPanel();
+                        break;
+
+                    case DISABLE_FORCE_REFRESH:
+                        toolbarPanel.disableForceRefresh();
+                        break;
+
+                    case ENABLE_FORCE_REFRESH:
+                        toolbarPanel.enableForceRefresh();
+                        break;
+
+                    case NG_LIB_UPDATED_EVENT:
+                        if(toolbarPanel.showAllEnabled()) {
+                            tablePanel.showOnlyDiff();
+                        }
+                        break;
+                }
             }
         });
 
@@ -154,166 +232,31 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
         add(mainFrameActionPanel, BorderLayout.SOUTH);
     }
 
-    private void updateNpmVersions() {
-        List<PackageInfo> packageInfos = tablePanel.data();
-        List<PackageInfo> updatePackageInfos = new ArrayList<>();
-        if(tablePanel.selectedRows().size() == 0) {
-            List<PackageInfo> unSyncedPackages = packageInfos.stream().filter(packageInfo -> !packageInfo.getYourVersion().equals(packageInfo.getLatestVersion())).collect(Collectors.toList());
-            updatePackageInfos.addAll(unSyncedPackages);
-        }
-        else {
-            for(int i : tablePanel.selectedRows()) {
-                updatePackageInfos.add(packageInfos.get(i));
-            }
-        }
-        if (updateNpmWorker == null || updateNpmWorker.isDone() || updateNpmWorker.isCancelled()) {
-            updateNpmVersionsSwingWorker(updatePackageInfos);
-            updateNpmWorker.execute();
-        }
-        loading.setVisible(true);
+    @Override
+    public void eventEmitter(EventEmitter eventEmitter) {
+        this.emitter = eventEmitter;
     }
 
-    private void updateNpmVersionsSwingWorker(List<PackageInfo> updatePackageInfos) {
-        updateNpmWorker = new SwingWorker<>() {
-
-            @Override
-            protected void done() {
-                System.out.println("All Packages has been updated");
-                loading.dispose();
-                JOptionPane.showMessageDialog(PackageMonitorMainFrame.this, "Package(s) updated successfully!", "Updated Successfully", JOptionPane.INFORMATION_MESSAGE);
-            }
-
-            @Override
-            protected void process(List<String> packageNames) {
-                boolean shouldContinue = !isCancelled();
-                if(shouldContinue) {
-                    JOptionPane.showMessageDialog(PackageMonitorMainFrame.this, "Updated package:" + packageNames.get(0), "Updated Successfully", JOptionPane.INFORMATION_MESSAGE);
-                    System.out.println("Updated package:" + packageNames.get(0));
-                }
-            }
-
-            @Override
-            protected PackageInfo doInBackground() {
-                boolean shouldContinue = !isCancelled();
-                while (shouldContinue) {
-                    if (isCancelled()) {
-                        shouldContinue = false;
-                        continue;
-                    }
-                    for(PackageInfo packageInfo : updatePackageInfos) {
-                        List<String> cmds = new ArrayList<>();
-                        cmds.add(IntelliJNpmUtils.npm());
-                        GeneralCommandLine generalCommandLine = new GeneralCommandLine(cmds);
-                        generalCommandLine.setCharset(StandardCharsets.UTF_8);
-                        generalCommandLine.setWorkDirectory(project.getBasePath());
-                        generalCommandLine.addParameters("install", packageInfo.getPackageName()+"@"+packageInfo.getLatestVersion());
-                        try {
-                            String output = ScriptRunnerUtil.getProcessOutput(generalCommandLine);
-                            System.out.println(output);
-                            publish(packageInfo.getPackageName());
-                        }
-                        catch (ExecutionException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    shouldContinue = false;
-                }
-                return null;
-            }
-        };
-    }
-
-
-    private void compareNpmVersionsSwingWorker() {
-        packageNamePackageInfoMap = new HashMap<>();
-        Map<String, String> packageNameVersionMap = IntelliJNpmUtils.retrievePackageNameKeyedVersionMap(project);
-        if(!packageInfoConfiguration.getConfiguredPackageInfos().isEmpty()) {
-            List<String> savedPackageNames = packageInfoConfiguration.getConfiguredPackageInfos().stream().map(PackageInfo::getPackageName).collect(Collectors.toList());
-            packageNameVersionMap = packageNameVersionMap.entrySet().stream().filter(entry -> savedPackageNames.contains(entry.getKey())).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    private void initLoadingPanel() {
+        loading = new JDialog(this);
+        JPanel loadingPanel = new JPanel(new BorderLayout());
+        JPanel loadingInfoPanel = new JPanel(new FlowLayout());
+        JLabel waitLabel = new JLabel("Please wait...",new AnimatedIcon.Default(), SwingConstants.LEFT);
+        waitLabel.setFont(new Font("JetBrains Mono", Font.PLAIN, 12));
+        if(!UIUtil.isUnderDarcula()) {
+            loading.setBackground(JBColor.WHITE);
+            loadingPanel.setBackground(JBColor.WHITE);
+            loadingInfoPanel.setBackground(JBColor.WHITE);
         }
-        packageNameVersionMap.forEach((name, version) ->{
-            PackageInfo disputeData = new PackageInfo();
-            disputeData.setPackageName(name);
-            disputeData.setYourVersion(version);
-            disputeData.setLatestVersion(packageInfoConfiguration.isConfiguredPackagesInSync() ? version : null);
-            packageNamePackageInfoMap.put(name, disputeData);
-            tablePanel.addData(disputeData);
-        });
-        Map<String, String> finalPackageNameVersionMap = packageNameVersionMap;
-        PackageMonitorMainFrame self = this;
-        if (compareNpmWorker == null || compareNpmWorker.isDone() || compareNpmWorker.isCancelled()) {
-            compareNpmVersionsSwingWorker(finalPackageNameVersionMap);
-        }
-        if(!packageInfoConfiguration.isConfiguredPackagesInSync()){
-            compareNpmWorker.execute();
-        }
-        else {
-            tablePanel.disableRowSelection();
-        }
-    }
-
-    private void compareNpmVersionsSwingWorker(Map<String, String> finalPackageNameVersionMap) {
-        compareNpmWorker = new SwingWorker<>() {
-            @Override
-            protected void done() {
-                System.out.println("done has been called current entries"+ packageNamePackageInfoMap.size());
-                boolean allPackagesInSync = packageNamePackageInfoMap.entrySet().stream().allMatch(entry -> entry.getValue().getYourVersion().equals(entry.getValue().getLatestVersion()));
-                if(allPackagesInSync) {
-                    tablePanel.disableRowSelection();
-                    mainFrameActionPanel.hideUpdateButton();
-                    toolbarPanel.setVisible(false);
-                    packageInfoConfiguration.setConfiguredPackagesInSync(true);
-                    PackageMonitorConfigFrame.saveConfigurationToUserHome(packageInfoConfiguration);
-                }
-                else {
-                    tablePanel.enableRowSelection();
-                    mainFrameActionPanel.showUpdateButton();
-                    toolbarPanel.setVisible(true);
-                }
-            }
-
-            @Override
-            protected void process(List<String> packageNames) {
-                boolean shouldContinue = !isCancelled();
-                if(shouldContinue) {
-                    int retrieved = packageNames.size();
-                    System.out.println("Got " + retrieved+ " packageInfo." + packageNames);
-                    PackageInfo packageInfo = packageNamePackageInfoMap.get(packageNames.get(0));
-                    tablePanel.replace(packageInfo);
-                }
-            }
-
-            @Override
-            protected PackageInfo doInBackground() {
-                boolean shouldContinue = !isCancelled();
-                while (shouldContinue) {
-                    if (isCancelled()) {
-                        shouldContinue = false;
-                        continue;
-                    }
-                    for(String name : finalPackageNameVersionMap.keySet()) {
-                        List<String> cmds = new ArrayList<>();
-                        cmds.add(IntelliJNpmUtils.npm());
-                        GeneralCommandLine generalCommandLine = new GeneralCommandLine(cmds);
-                        generalCommandLine.setCharset(StandardCharsets.UTF_8);
-                        generalCommandLine.setWorkDirectory(project.getBasePath());
-                        generalCommandLine.addParameters("show", name, "version");
-                        try {
-                            String latestVersionOnServer = ScriptRunnerUtil.getProcessOutput(generalCommandLine);
-                            latestVersionOnServer = latestVersionOnServer.replace("\n", "").replace("\r", "");
-                            PackageInfo packageInfo = packageNamePackageInfoMap.get(name);
-                            packageInfo.setLatestVersion(latestVersionOnServer);
-                            publish(name);
-                        }
-                        catch (ExecutionException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    shouldContinue = false;
-                }
-                return null;
-            }
-        };
+        loadingInfoPanel.add(waitLabel);
+        loadingPanel.add(loadingInfoPanel, BorderLayout.CENTER);
+        loadingPanel.setSize(300,300);
+        loading.setUndecorated(true);
+        loading.getContentPane().add(loadingPanel);
+        loading.pack();
+        loading.setLocationRelativeTo(this);
+        loading.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        loading.setModal(true);
     }
 
     private JMenuBar initMenuBar() {
@@ -324,12 +267,7 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
 
         exitItem = new JMenuItem("Exit");
         settingsItem = new JMenuItem("Settings...");
-        if(UIUtil.isUnderDarcula()) {
-            settingsItem.setIcon(IconUtils.createIcon("/icon/settings_dark.png"));
-        }
-        else {
-            settingsItem.setIcon(IconUtils.createIcon("/icon/settings_white.png"));
-        }
+        settingsItem.setIcon(PackageMonitorIcon.GEAR_ICON);
         exitItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_E, ActionEvent.CTRL_MASK));
         settingsItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, ActionEvent.CTRL_MASK));
 
@@ -337,11 +275,5 @@ public class PackageMonitorMainFrame extends JFrame implements SwingComponent {
         fileMenu.add(exitItem);
         menuBar.add(fileMenu);
         return menuBar;
-    }
-
-    private <T, V>  void cleanUpWorkers(SwingWorker<T, V> worker) {
-        if(worker != null && !worker.isCancelled() && !worker.isDone()) {
-            worker.cancel(true);
-        }
     }
 }

@@ -1,6 +1,8 @@
 package com.salilvnair.packagemonitor.model;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author Salil V Nair
@@ -9,6 +11,7 @@ public class PackageInfo implements Serializable {
     private String packageName;
     private String yourVersion;
     private String latestVersion;
+    private List<String> packageVersions;
 
     public PackageInfo() {}
 
@@ -40,5 +43,20 @@ public class PackageInfo implements Serializable {
 
     public void setLatestVersion(String latestVersion) {
         this.latestVersion = latestVersion;
+    }
+
+    public List<String> packageVersions() {
+        if(packageVersions == null) {
+            packageVersions = new ArrayList<>();
+        }
+        return packageVersions;
+    }
+
+    public List<String> getPackageVersions() {
+        return packageVersions;
+    }
+
+    public void setPackageVersions(List<String> packageVersions) {
+        this.packageVersions = packageVersions;
     }
 }

@@ -24,8 +24,11 @@ import com.salilvnair.packagemonitor.frame.PackageMonitorConfigFrame;
 import com.salilvnair.packagemonitor.frame.PackageMonitorMainFrame;
 import com.salilvnair.packagemonitor.model.PackageInfo;
 import com.salilvnair.packagemonitor.model.PackageInfoConfiguration;
+import com.salilvnair.packagemonitor.service.type.PackageMonitorType;
 import org.jetbrains.annotations.NotNull;
 
+import javax.swing.*;
+import java.awt.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -36,28 +39,34 @@ public class PackageMonitorAction extends AnAction {
 
     @Override
     public void actionPerformed(AnActionEvent e) {
-        PackageInfoConfiguration packageInfoConfiguration = PackageMonitorConfigFrame.loadConfigurationFromUserHome();
+        String filename = editorFileName(e);
+        PackageInfoConfiguration packageInfoConfiguration = PackageMonitorConfigFrame.loadConfigurationFromUserHome(PackageMonitorType.findByFileName(filename));
         if(packageInfoConfiguration==null || packageInfoConfiguration.getConfiguredPackageInfos().isEmpty()) {
-            new PackageMonitorConfigFrame(e.getProject(), true, false);
+            new PackageMonitorConfigFrame(e.getProject(), true, false, PackageMonitorType.findByFileName(filename));
         }
         else {
-            new PackageMonitorMainFrame(e.getProject(), packageInfoConfiguration);
+            new PackageMonitorMainFrame(e.getProject(), packageInfoConfiguration, PackageMonitorType.findByFileName(filename));
         }
 
     }
-
-
 
     @Override
     public void update(@NotNull AnActionEvent e) {
-        PsiFile psiFile = e.getData(CommonDataKeys.PSI_FILE);
-        assert psiFile != null;
-        String filename = psiFile.getVirtualFile().getName();
+        String filename = editorFileName(e);
         Presentation presentation = e.getPresentation();
-        if (!"package.json".equals(filename)) {
-            presentation.setEnabledAndVisible(false);
+        if ("package.json".equals(filename) || "angular.json".equals(filename)) {
+            presentation.setEnabledAndVisible(true);
             return;
         }
-        presentation.setEnabledAndVisible(true);
+        presentation.setEnabledAndVisible(false);
     }
+
+
+    private String editorFileName(@NotNull AnActionEvent e) {
+        PsiFile psiFile = e.getData(CommonDataKeys.PSI_FILE);
+        assert psiFile != null;
+        return psiFile.getVirtualFile().getName();
+    }
+
+
 }
